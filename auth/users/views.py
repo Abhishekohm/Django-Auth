@@ -1,3 +1,4 @@
+from email import message
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.contrib.auth.hashers import make_password, check_password
@@ -20,12 +21,22 @@ def login(request):
     user = User.objects.filter(username=username).first()
     if user is None:
         raise NotFound(code=404)
+
     instance = user
     user = AuthUserSerializer(user).data
+
+    # checking password
+    if check_password(password, user.get('password')) == False:
+        return Response({
+            'message': 'username or password is incorrect'
+        }, status=401)
+
+    # generating tokens
     access_token = instance.getAccessToken()
     refresh_token = instance.getRefreshToken()
     print('access_token => ', access_token)
     print('refresh_token => ', refresh_token)
+
     response = Response({
         'user': user,
         'access_token': access_token
@@ -67,20 +78,31 @@ def private(request):
     })
 
 
-@api_view(['GET'])  # debugging remaining
+@api_view(['GET'])
 def refresh(request):
     refresh_token = request.COOKIES.get('jwt_refresh_token')
     if refresh_token is None:
-        return Response(status=401)
-    user = User.objects.filter(refresh_token=refresh_token).first()
+        return Response(status=403)
+    user = User.objects.filter(refreshToken=refresh_token).first()
+
+    if user is None:
+        return Response(403)
+
     try:
         payload = jwt.decode(refresh_token, 'secret', algorithms=["HS256"])
     except jwt.ExpiredSignatureError:
-        return Response(status=404)
-    if user.id != payload.id:
-        return Response(status=400)
+        return Response(status=403)
+    except:
+        return Response(status=500)
+
+    seralized_user = UserSerializer(user).data
+
+    if seralized_user.get('id') != payload.get('id'):
+        return Response(status=403)
 
     access_token = user.getAccessToken()
+
     return Response({
-        access_token: access_token
+        'access_token': access_token,
+        'user': seralized_user
     })

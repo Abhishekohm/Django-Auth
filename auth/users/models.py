@@ -15,7 +15,7 @@ class User(models.Model):
     def getAccessToken(self):
         payload = {
             'id': self.id,
-            'exp': datetime.utcnow() + timedelta(minutes=10)
+            'exp': datetime.utcnow() + timedelta(minutes=60)
         }
         jwt_token = jwt.encode(payload, 'secret', algorithm="HS256")
         return jwt_token
@@ -23,7 +23,7 @@ class User(models.Model):
     def getRefreshToken(self):
         payload = {
             'id': self.id,
-            'exp': datetime.utcnow() + timedelta(days=1)
+            'exp': datetime.utcnow() + timedelta(days=7)
         }
         jwt_token = jwt.encode(payload, 'secret', algorithm="HS256")
         self.refreshToken = jwt_token
